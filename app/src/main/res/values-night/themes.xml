@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Bvb" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <!-- Shown during cold start before Compose renders; matches BvbTheme dark background (DeepNavy) -->
+        <item name="android:windowBackground">#0D1B2A</item>
+    </style>
+</resources>
