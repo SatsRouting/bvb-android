@@ -340,7 +340,15 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
                         modifier = Modifier
                             .fillMaxWidth(0.6f)
                             .align(Alignment.CenterHorizontally)
-                            .padding(bottom = 24.dp),
+                            .padding(bottom = 6.dp),
+                    )
+                    Text(
+                        "BETA · v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(bottom = 20.dp),
                     )
                 }
             }

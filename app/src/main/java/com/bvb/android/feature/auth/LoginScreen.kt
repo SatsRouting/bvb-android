@@ -147,13 +147,7 @@ fun LoginScreen(
             contentDescription = "Bitcoin Voucher Bot P2P",
             modifier = Modifier.fillMaxWidth(0.8f),
         )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "BETA · v${BuildConfig.VERSION_NAME}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
 
         state.error?.let {
             ErrorBanner(it)
