@@ -1,114 +1,88 @@
-# BVB Android
+# Bitcoin Voucher Bot — Android
 
-Native Kotlin client for the BVB P2P Bitcoin marketplace. MVP scope: login /
-avatar creation, marketplace order book, order creation with Lightning deposit,
-full trade flow (escrow states, timelocks, consensual cancellation, claims),
-end-to-end encrypted PGP chat, real-time updates via SSE, notifications and
-profile (mnemonic / PGP key reveal).
+Native Android client for the [Bitcoin Voucher Bot](https://p2p.bitcoinvoucher.bot)
+— a **non-custodial** peer-to-peer Bitcoin / Lightning marketplace.
 
-## Stack
+This repository hosts both the **full app source code** and the **signed APK
+releases**. If you use [Obtainium](https://github.com/ImranR98/Obtainium)
+you'll get update notifications automatically.
 
-- Kotlin + Jetpack Compose (Material 3), single module, package-by-feature
-- Hilt (DI), Retrofit + OkHttp + kotlinx.serialization (REST), OkHttp SSE
-- PGPainless + BouncyCastle (PGP, same dual-encryption envelope as the web client)
-- ZXing (invoice QR), EncryptedSharedPreferences + Keystore (JWT storage)
-- minSdk 26, target/compile SDK 35
+## 📥 Install
 
-## Backend requirements
+1. Open the [**Latest release**](../../releases/latest) and download the `.apk`.
+2. On your phone, allow installation from unknown sources when prompted.
+3. Install and open the app.
 
-The app authenticates with `Authorization: Bearer` and identifies itself with
-the `X-Client: mobile` header; the backend returns the JWT in the login body
-for mobile clients (see `internal/api/auth_handlers.go`). Run a backend built
-from this repository (commit including the mobile login change).
+Requires **Android 8.0** (API 26) or newer.
 
-The REST contract consumed by the app is documented in
-[`../docs/api/openapi.yaml`](../docs/api/openapi.yaml).
+### Automatic updates with Obtainium
 
-## Building
+1. Install [Obtainium](https://github.com/ImranR98/Obtainium).
+2. **Add App** → paste this repository URL:
 
-```bash
-cd android
-./gradlew :app:assembleDebug
+   ```
+   https://github.com/SatsRouting/bvb-android
+   ```
+
+3. Obtainium tracks GitHub releases and offers new versions automatically.
+
+## 🔐 Verify before installing
+
+Every release is signed with the **same** key, so updates install in place.
+Verify the signing certificate with
+[AppVerifier](https://github.com/soupslurpr/AppVerifier):
+
+```
+Package:  com.bvb.android
+SHA-256:  CAC5CB9A971EF95E7A2C8651288AD0CE0C46DC7EAAE5468C4445DDBDA23A7E73
 ```
 
-Configuration (Gradle properties, e.g. `-PbvbBaseUrl=...`):
+The **per-file APK SHA-256** is published in each release's notes.
 
-| Property | Default | Meaning |
-|---|---|---|
-| `bvbBaseUrl` | `http://10.0.2.2:8080` | Backend base URL (default = host loopback from the Android emulator) |
-| `bvbTurnstileSiteKey` | empty | Cloudflare Turnstile site key; empty skips the widget (backend must have `Turnstile.Enabled=false`) |
+## 🛠️ Build from source
 
-Example against a production server:
+The app is a standard Gradle / Jetpack Compose project (Kotlin, JDK 17).
 
 ```bash
+# The base URL and the (public) Cloudflare Turnstile site key are build inputs:
 ./gradlew :app:assembleRelease \
-  -PbvbBaseUrl=https://bvb.example.com \
-  -PbvbTurnstileSiteKey=0x4AAA...
+  -PbvbBaseUrl=https://p2p.bitcoinvoucher.bot \
+  -PbvbTurnstileSiteKey=0x4AAAAAAB4U6O83PyG_ydwa
 ```
 
-### Release signing
-
-Create `android/keystore.properties` (gitignored):
-
-```properties
-storeFile=/absolute/path/to/release.keystore
-storePassword=...
-keyAlias=...
-keyPassword=...
-```
-
-Generate a keystore with:
+To produce a signed build, copy `keystore.properties.example` to
+`keystore.properties` and fill in your own keystore details (never commit it —
+it is git-ignored). Official releases are signed with our key; verify the
+signing certificate as described above. A helper script builds, signs and
+prints the fingerprints in one step:
 
 ```bash
-keytool -genkeypair -keystore release.keystore -alias bvb \
-  -keyalg RSA -keysize 4096 -validity 10000
+./scripts/release.sh
 ```
 
-APKs are produced in `app/build/outputs/apk/{debug,release}/`.
+No secrets are embedded in the source: the API base URL and the Turnstile site
+key are public, and are passed at build time.
 
-### Verifying the APK signature (AppVerifier / GrapheneOS)
+## ✨ Features
 
-Official release builds are signed with a certificate whose SHA-256
-fingerprint is:
+- Login and avatar creation (Cloudflare Turnstile)
+- Marketplace order book with filters, reputation and payment method icons
+- Order creation with Lightning deposit
+- Full trade flow: escrow, timelocks, consensual cancellation, claims
+- End-to-end encrypted PGP chat with image attachments
+- Disputes with text / file / chat evidence
+- Mullvad VPN voucher purchase via Lightning
+- Real-time updates (SSE) and local notifications
+- App lock (fingerprint / face / device PIN) for the app and sensitive actions
+- Wallet recovery, referral program, Telegram linking
 
-```
-com.bvb.android
-CAC5CB9A971EF95E7A2C8651288AD0CE0C46DC7EAAE5468C4445DDBDA23A7E73
-```
+## 🔗 Links
 
-With [AppVerifier](https://github.com/soupslurpr/AppVerifier):
-"Internal database: status not found" is expected — that database only
-contains a short curated list of well-known apps. Verify manually instead:
-share the APK (or the installed app) to AppVerifier, then compare the
-fingerprint it shows with the value above, or copy the two lines above and
-use AppVerifier's paste/compare function. If they match, the APK is genuine.
+- Web app: https://p2p.bitcoinvoucher.bot
+- Telegram bot: https://t.me/BitcoinVoucherBot
 
-The same fingerprint can be checked from a computer with:
+## ⚠️ Disclaimer
 
-```bash
-apksigner verify --print-certs bvb-<version>.apk
-```
-
-## Architecture notes
-
-- `core/session/SessionManager` — JWT persisted in EncryptedSharedPreferences;
-  the session password and decrypted PGP private key live **only in memory**
-  and are wiped on logout (same model as the web client).
-- `core/sse/SseClient` — single SSE connection with exponential backoff; emits
-  a synthetic `sse_reconnected` event so screens re-fetch state they may have
-  missed while offline.
-- `core/pgp/PgpService` — mirrors `frontend/src/utils/pgp.js`: armored
-  encrypt/decrypt, detached signatures, and the
-  `{"for_recipient": ..., "for_sender": ...}` dual-encryption envelope used in
-  trade chat.
-- `feature/trade/TradeDetailViewModel` — the escrow state machine; actions
-  that co-sign transactions (seller confirm, claims, cancel confirm) prompt for
-  the password when it is not already cached in the session.
-- Turnstile: when `bvbTurnstileSiteKey` is set, login and avatar creation
-  render the widget in a WebView (`feature/auth/TurnstileWebView`) and forward
-  the solved token in the request.
-
-## Not yet implemented (post-MVP)
-
-- Tor/Orbot support (planned phase 2)
-- Admin features
+Beta software, provided **as is**, without warranty. The marketplace is
+non-custodial: you are responsible for your keys, your recovery phrase and your
+funds. Always verify the signing certificate above before installing.
