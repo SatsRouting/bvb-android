@@ -27,8 +27,8 @@ android {
         applicationId = "com.bvb.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 67
-        versionName = "0.1.66"
+        versionCode = 68
+        versionName = "0.1.67"
 
         // Backend base URL; override per build type or with -PbvbBaseUrl=...
         val baseUrl = (project.findProperty("bvbBaseUrl") as String?) ?: "http://10.0.2.2:8080"

@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -102,6 +103,7 @@ fun AppLockScreen(viewModel: AppViewModel) {
         if (!biometricReady) showPasswordForm = true
     }
 
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -181,5 +183,6 @@ fun AppLockScreen(viewModel: AppViewModel) {
         TextButton(onClick = { viewModel.logout() }) {
             Text("Log out")
         }
+    }
     }
 }
