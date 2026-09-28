@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bvb.android.core.AppLog
 import com.bvb.android.core.network.ApiError
 import com.bvb.android.core.network.ApiService
 import com.bvb.android.core.pgp.PgpService
@@ -68,6 +69,7 @@ import com.bvb.android.ui.components.formatFiat
 import com.bvb.android.ui.components.formatSats
 import com.bvb.android.ui.components.noAutofill
 import com.bvb.android.ui.components.passwordContentType
+import com.bvb.android.ui.components.SecureScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -183,7 +185,7 @@ class DisputeDetailViewModel @Inject constructor(
                         }
                         ChatEvidenceMessage(messageId = msg.id, decryptedText = text)
                     } catch (t: Throwable) {
-                        android.util.Log.e("BVB", "evidence decryption failed", t)
+                        AppLog.e("BVB", "evidence decryption failed", t)
                         null
                     }
                 }
@@ -205,7 +207,7 @@ class DisputeDetailViewModel @Inject constructor(
                 uiState.update { it.copy(submittingEvidence = false) }
                 submitChatEvidence()
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "pgp unlock failed", t)
+                AppLog.e("BVB", "pgp unlock failed", t)
                 uiState.update {
                     it.copy(submittingEvidence = false, evidenceMessage = ApiError.messageOf(t))
                 }
@@ -228,7 +230,7 @@ class DisputeDetailViewModel @Inject constructor(
                 val message = block()
                 uiState.update { it.copy(submittingEvidence = false, evidenceMessage = message) }
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "evidence submit failed", t)
+                AppLog.e("BVB", "evidence submit failed", t)
                 val msg = (t as? IllegalArgumentException)?.message
                     ?: (t as? IllegalStateException)?.message
                     ?: ApiError.messageOf(t)
@@ -245,6 +247,8 @@ fun DisputeDetailScreen(
     viewModel: DisputeDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Dispute view can reveal decrypted evidence/chat: block capture.
+    SecureScreen()
 
     if (state.askPasswordForChat) {
         PasswordPromptSheet(

@@ -40,7 +40,22 @@ fun TurnstileWebView(
         factory = { context ->
             WebView(context).apply {
                 settings.javaScriptEnabled = true
-                webViewClient = WebViewClient()
+                // Hardening: JS is required by Turnstile, but nothing else is.
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
+                settings.setGeolocationEnabled(false)
+                settings.domStorageEnabled = false
+                // Confine the WebView to the Turnstile challenge: block any
+                // top-level navigation away from the Cloudflare challenge host.
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: android.webkit.WebResourceRequest,
+                    ): Boolean {
+                        val host = request.url.host ?: return true
+                        return !host.endsWith("challenges.cloudflare.com")
+                    }
+                }
                 setBackgroundColor(Color.TRANSPARENT)
                 addJavascriptInterface(object {
                     @JavascriptInterface

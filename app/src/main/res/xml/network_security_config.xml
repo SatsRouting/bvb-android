@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release network policy:
+  - No cleartext (HTTP) traffic anywhere.
+  - Certificate pinning for the backend domain, pinned to the Google Trust
+    Services intermediate (WE1) with the GTS Root R4 as a backup pin, so a
+    routine leaf-certificate rotation (ACME, ~90 days) does NOT brick the app.
+  - `expiration` is an anti-brick safety valve: past this date the OS stops
+    enforcing the pins and falls back to normal system trust. Refresh the pins
+    and bump this date well before it lapses.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">bitcoinvoucher.bot</domain>
+        <pin-set expiration="2027-12-31">
+            <!-- Google Trust Services WE1 (issuing intermediate) -->
+            <pin digest="SHA-256">kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=</pin>
+            <!-- Google Trust Services Root R4 (backup) -->
+            <pin digest="SHA-256">mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

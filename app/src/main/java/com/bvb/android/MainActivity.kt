@@ -343,7 +343,7 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
                             .padding(bottom = 6.dp),
                     )
                     Text(
-                        "BETA · v${BuildConfig.VERSION_NAME}",
+                        "v${BuildConfig.VERSION_NAME}-beta",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier

@@ -79,6 +79,7 @@ import com.bvb.android.data.model.UserProfile
 import com.bvb.android.data.model.UserStats
 import com.bvb.android.ui.components.AppSnackbar
 import com.bvb.android.ui.components.rememberBiometricAction
+import com.bvb.android.ui.components.SecureScreen
 import com.bvb.android.ui.components.ErrorBanner
 import com.bvb.android.ui.components.FullScreenLoading
 import com.bvb.android.ui.components.LoadingOutlinedButton
@@ -948,6 +949,7 @@ private fun PasswordSheet(
 private fun MnemonicSheet(mnemonic: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val words = mnemonic.trim().split(Regex("\\s+"))
+    SecureScreen()
     SettingsSheet(title = "Your Recovery Phrase", onDismiss = onDismiss) {
         Text(
             "Write these words down and store them in a safe place. Anyone with these words can access your funds.",
@@ -983,7 +985,7 @@ private fun MnemonicSheet(mnemonic: String, onDismiss: () -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
         OutlinedButton(
-            onClick = { copyToClipboard(context, "mnemonic", mnemonic) },
+            onClick = { copyToClipboard(context, "mnemonic", mnemonic, sensitive = true) },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Copy") }
     }
@@ -992,6 +994,7 @@ private fun MnemonicSheet(mnemonic: String, onDismiss: () -> Unit) {
 @Composable
 private fun PgpBackupSheet(backup: PgpBackup, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    SecureScreen()
     SettingsSheet(title = "Don't trust, verify", onDismiss = onDismiss) {
         Text(
             "Your communication is end-to-end encrypted with OpenPGP. You can verify the privacy of this chat using any tool based on the OpenPGP standard.",
@@ -1004,11 +1007,11 @@ private fun PgpBackupSheet(backup: PgpBackup, onDismiss: () -> Unit) {
         }
         Spacer(Modifier.height(10.dp))
         CredentialBlock("Your encrypted private key", backup.privateKey) {
-            copyToClipboard(context, "pgp private key", backup.privateKey)
+            copyToClipboard(context, "pgp private key", backup.privateKey, sensitive = true)
         }
         Spacer(Modifier.height(10.dp))
         CredentialBlock("Your private key passphrase (keep secure!)", backup.passphrase) {
-            copyToClipboard(context, "pgp passphrase", backup.passphrase)
+            copyToClipboard(context, "pgp passphrase", backup.passphrase, sensitive = true)
         }
     }
 }
@@ -1148,9 +1151,24 @@ private fun ReferralLinkBlock(label: String, url: String, onCopy: () -> Unit) {
 
 // --- Helpers ---
 
-private fun copyToClipboard(context: Context, label: String, text: String) {
+private fun copyToClipboard(
+    context: Context,
+    label: String,
+    text: String,
+    sensitive: Boolean = false,
+) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    val clip = ClipData.newPlainText(label, text)
+    if (sensitive) {
+        // Android 13+: keep secrets (recovery phrase, private key, passphrase)
+        // out of the clipboard preview UI and clipboard history / cloud sync.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = android.os.PersistableBundle().apply {
+                putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+    }
+    clipboard.setPrimaryClip(clip)
 }
 
 private fun formatDate(iso: String): String = try {

@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bvb.android.core.AppLog
 import com.bvb.android.core.network.ApiError
 import com.bvb.android.core.network.ApiService
 import com.bvb.android.core.pgp.PgpService
@@ -147,7 +148,7 @@ class ChatViewModel @Inject constructor(
             } catch (t: Throwable) {
                 // Throwable (not Exception): a JVM Error thrown by the PGP
                 // stack must not crash the whole app.
-                android.util.Log.e("BVB", "chat load failed", t)
+                AppLog.e("BVB", "chat load failed", t)
                 if (!silent) {
                     uiState.value = uiState.value.copy(loading = false, error = ApiError.messageOf(t))
                 }
@@ -182,7 +183,7 @@ class ChatViewModel @Inject constructor(
             }
             ChatMessage(msg.id, msg.senderAvatar, plaintext, msg.isFromSelf, timeLabel, signatureValid = signatureValid)
         } catch (t: Throwable) {
-            android.util.Log.e("BVB", "message decryption failed", t)
+            AppLog.e("BVB", "message decryption failed", t)
             ChatMessage(msg.id, msg.senderAvatar, "", msg.isFromSelf, timeLabel, decryptionFailed = true)
         }
     }
@@ -196,7 +197,7 @@ class ChatViewModel @Inject constructor(
                 uiState.value = uiState.value.copy(unlocking = false, locked = false)
                 load(silent = true)
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "pgp unlock failed", t)
+                AppLog.e("BVB", "pgp unlock failed", t)
                 uiState.value = uiState.value.copy(
                     unlocking = false,
                     unlockError = ApiError.messageOf(t),
@@ -229,7 +230,7 @@ class ChatViewModel @Inject constructor(
                 api.sendMessage(tradeId, payload)
                 load(silent = true)
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "message send failed", t)
+                AppLog.e("BVB", "message send failed", t)
                 uiState.value = uiState.value.copy(error = ApiError.messageOf(t))
             } finally {
                 uiState.value = uiState.value.copy(sending = false)
@@ -264,7 +265,7 @@ class ChatViewModel @Inject constructor(
                     it.copy(images = it.images + (messageId to ChatImage.Ready(bitmap.asImageBitmap())))
                 }
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "image decryption failed", t)
+                AppLog.e("BVB", "image decryption failed", t)
                 uiState.update { it.copy(images = it.images + (messageId to ChatImage.Failed)) }
             } finally {
                 decryptingImages.remove(messageId)
@@ -305,7 +306,7 @@ class ChatViewModel @Inject constructor(
                 }
                 load(silent = true)
             } catch (t: Throwable) {
-                android.util.Log.e("BVB", "image send failed", t)
+                AppLog.e("BVB", "image send failed", t)
                 val msg = (t as? IllegalStateException)?.message ?: ApiError.messageOf(t)
                 uiState.value = uiState.value.copy(error = msg)
             } finally {

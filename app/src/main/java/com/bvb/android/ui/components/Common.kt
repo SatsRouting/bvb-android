@@ -93,6 +93,35 @@ fun android.content.Context.findFragmentActivity(): androidx.fragment.app.Fragme
     return null
 }
 
+/** Ref-count so overlapping secure screens don't clear FLAG_SECURE too early. */
+private val secureScreenCount = java.util.concurrent.atomic.AtomicInteger(0)
+
+/**
+ * While this composable is in the composition, sets FLAG_SECURE on the window:
+ * blocks screenshots/screen recording and hides the content from the app-switcher
+ * thumbnail. Use on screens that reveal secrets (recovery phrase, PGP private key,
+ * passphrase) or decrypted private content (chat, dispute evidence). The flag is
+ * reference-counted so several secure screens can be active at once without one
+ * clearing the flag while another still needs it.
+ */
+@Composable
+fun SecureScreen() {
+    val window = androidx.compose.ui.platform.LocalContext.current.findFragmentActivity()?.window
+    androidx.compose.runtime.DisposableEffect(window) {
+        if (window != null && secureScreenCount.getAndIncrement() == 0) {
+            window.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            )
+        }
+        onDispose {
+            if (window != null && secureScreenCount.decrementAndGet() == 0) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
+}
+
 /**
  * Returns a trigger for the "authenticate, then act" flow, or null when the App
  * lock is not enrolled / the device can't authenticate / the host is not a

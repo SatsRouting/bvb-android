@@ -66,6 +66,7 @@ import com.bvb.android.ui.components.ErrorBanner
 import com.bvb.android.ui.components.FullScreenLoading
 import com.bvb.android.ui.components.noAutofill
 import com.bvb.android.ui.components.passwordContentType
+import com.bvb.android.ui.components.SecureScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +76,8 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Chat shows decrypted private messages: block screenshots/recents capture.
+    SecureScreen()
     // Picks up a pending template (e.g. seller payment instructions), if any.
     var input by remember { mutableStateOf(ChatPrefill.consume(viewModel.tradeId) ?: "") }
     var lightbox by remember { mutableStateOf<ImageBitmap?>(null) }
