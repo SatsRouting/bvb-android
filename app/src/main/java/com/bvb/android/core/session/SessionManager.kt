@@ -1,9 +1,8 @@
 package com.bvb.android.core.session
 
 import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.bvb.android.core.security.BiometricUnlock
+import com.bvb.android.core.security.EncryptedPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,8 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Holds the session state. The JWT is persisted in EncryptedSharedPreferences
- * (key material in the Android Keystore). The session password and the
+ * Holds the session state. The JWT is persisted with EncryptedPrefs
+ * (AES/GCM key in the Android Keystore). The session password and the
  * decrypted PGP private key live only in memory and are wiped on logout,
  * mirroring the web client's model.
  */
@@ -22,13 +21,7 @@ class SessionManager @Inject constructor(
     private val biometric: BiometricUnlock,
 ) {
 
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "bvb_session",
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    private val prefs = EncryptedPrefs(context, "bvb_session")
 
     private val _isLoggedIn = MutableStateFlow(token != null)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
@@ -58,16 +51,16 @@ class SessionManager @Inject constructor(
         }
 
     var token: String?
-        get() = prefs.getString(KEY_TOKEN, null)
-        private set(value) = prefs.edit().putString(KEY_TOKEN, value).apply()
+        get() = prefs.getString(KEY_TOKEN)
+        private set(value) = prefs.putString(KEY_TOKEN, value)
 
     var userId: String?
-        get() = prefs.getString(KEY_USER_ID, null)
-        private set(value) = prefs.edit().putString(KEY_USER_ID, value).apply()
+        get() = prefs.getString(KEY_USER_ID)
+        private set(value) = prefs.putString(KEY_USER_ID, value)
 
     var avatarId: String?
-        get() = prefs.getString(KEY_AVATAR_ID, null)
-        private set(value) = prefs.edit().putString(KEY_AVATAR_ID, value).apply()
+        get() = prefs.getString(KEY_AVATAR_ID)
+        private set(value) = prefs.putString(KEY_AVATAR_ID, value)
 
     fun onLogin(token: String, userId: String, avatarId: String, password: String) {
         this.token = token
@@ -81,7 +74,7 @@ class SessionManager @Inject constructor(
     }
 
     fun onLogout() {
-        prefs.edit().clear().apply()
+        prefs.clear()
         sessionPassword = null
         pgpPrivateKeyArmored = null
         pgpPublicKeyArmored = null
