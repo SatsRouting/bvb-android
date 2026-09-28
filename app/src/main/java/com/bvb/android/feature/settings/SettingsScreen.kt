@@ -812,6 +812,15 @@ fun SettingsScreen(
             }
         }
 
+        HorizontalDivider(Modifier.padding(vertical = 16.dp))
+        Text(
+            "Bitcoin Voucher Bot · BETA · v${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+
         Spacer(Modifier.height(24.dp))
     }
 }
