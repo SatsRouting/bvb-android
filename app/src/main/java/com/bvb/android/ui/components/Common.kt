@@ -339,7 +339,7 @@ fun AvatarImage(avatarId: String, sizeDp: Int, modifier: Modifier = Modifier) {
     if (avatarId.isEmpty()) return
     val requestPx = (sizeDp * 2).coerceIn(32, 512)
     coil.compose.AsyncImage(
-        model = "${com.bvb.android.BuildConfig.BASE_URL}/api/avatar/$avatarId.png?size=$requestPx&v=3",
+        model = "${com.bvb.android.BuildConfig.BASE_URL}/api/avatar/$avatarId.png?size=$requestPx&v=4",
         contentDescription = "Avatar $avatarId",
         modifier = modifier.size(sizeDp.dp),
     )

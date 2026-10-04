@@ -572,7 +572,7 @@ fun SettingsScreen(
         // Profile header: avatar, id, user id, reputation, member since.
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = "${BuildConfig.BASE_URL}/api/avatar/${profile.avatarId}.png?size=128&v=3",
+                model = "${BuildConfig.BASE_URL}/api/avatar/${profile.avatarId}.png?size=128&v=4",
                 contentDescription = "Avatar ${profile.avatarId}",
                 modifier = Modifier.size(60.dp),
             )
@@ -761,7 +761,7 @@ fun SettingsScreen(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     AsyncImage(
-                        model = "${BuildConfig.BASE_URL}/api/avatar/${entry.blockedAvatarId}.png?size=64&v=3",
+                        model = "${BuildConfig.BASE_URL}/api/avatar/${entry.blockedAvatarId}.png?size=64&v=4",
                         contentDescription = null,
                         modifier = Modifier.size(28.dp),
                     )

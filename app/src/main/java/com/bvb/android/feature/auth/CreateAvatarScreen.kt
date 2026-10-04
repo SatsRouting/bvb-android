@@ -123,7 +123,7 @@ fun MnemonicDialog(title: String, mnemonic: String, onConfirm: () -> Unit, avata
                 avatarId?.let { id ->
                     Spacer(Modifier.height(16.dp))
                     AsyncImage(
-                        model = "${BuildConfig.BASE_URL}/api/avatar/$id.png?size=256&v=3",
+                        model = "${BuildConfig.BASE_URL}/api/avatar/$id.png?size=256&v=4",
                         contentDescription = "Avatar $id",
                         modifier = Modifier
                             .size(96.dp)

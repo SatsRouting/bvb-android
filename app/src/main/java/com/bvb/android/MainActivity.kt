@@ -284,7 +284,7 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
                             val avatarId = appViewModel.session.avatarId
                             if (avatarId != null) {
                                 AsyncImage(
-                                    model = "${BuildConfig.BASE_URL}/api/avatar/$avatarId.png?size=96&v=3",
+                                    model = "${BuildConfig.BASE_URL}/api/avatar/$avatarId.png?size=96&v=4",
                                     contentDescription = "Avatar $avatarId",
                                     modifier = Modifier.size(40.dp),
                                 )
