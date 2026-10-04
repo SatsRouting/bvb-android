@@ -1,7 +1,9 @@
 package com.bvb.android
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -35,6 +37,8 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Menu
@@ -59,7 +63,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -74,6 +80,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -93,6 +100,8 @@ import com.bvb.android.core.security.BiometricUnlock
 import com.bvb.android.ui.components.AppSnackbar
 import com.bvb.android.core.session.SessionManager
 import com.bvb.android.core.sse.SseClient
+import com.bvb.android.core.update.UpdateChecker
+import com.bvb.android.core.update.UpdateInfo
 import com.bvb.android.data.repository.AuthRepository
 import com.bvb.android.feature.auth.AppLockScreen
 import com.bvb.android.feature.auth.CreateAvatarScreen
@@ -128,6 +137,7 @@ class AppViewModel @Inject constructor(
     val sse: SseClient,
     val biometric: BiometricUnlock,
     private val authRepository: AuthRepository,
+    private val updateChecker: UpdateChecker,
     // Eagerly created so SSE notifications surface as local notifications.
     @Suppress("unused") private val localNotifier: LocalNotifier,
 ) : ViewModel() {
@@ -140,6 +150,22 @@ class AppViewModel @Inject constructor(
         session.token != null && biometric.isEnabled && session.sessionPassword == null,
     )
     val locked: StateFlow<Boolean> = _locked
+
+    /** A newer release available on GitHub, or null when up to date/unknown. */
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo
+    private var updateChecked = false
+
+    /** Checks GitHub once per process for a newer APK (best effort). */
+    fun checkForUpdate() {
+        if (updateChecked) return
+        updateChecked = true
+        viewModelScope.launch { _updateInfo.value = updateChecker.check() }
+    }
+
+    fun dismissUpdate() {
+        _updateInfo.value = null
+    }
 
     fun logout() {
         viewModelScope.launch {
@@ -200,10 +226,16 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val isLoggedIn by appViewModel.session.isLoggedIn.collectAsState()
     val locked by appViewModel.locked.collectAsState()
+    val updateInfo by appViewModel.updateInfo.collectAsState()
 
     DisposableEffect(isLoggedIn, locked) {
         if (isLoggedIn && !locked) appViewModel.sse.connect()
         onDispose { appViewModel.sse.disconnect() }
+    }
+
+    // Check GitHub for a newer APK once the user is in the app.
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) appViewModel.checkForUpdate()
     }
 
     // Full-screen lock: biometric enrolled + cold start. Do not render the
@@ -423,13 +455,20 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
             }
         }
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = if (isLoggedIn) Routes.MARKETPLACE else Routes.LOGIN,
+        Column(
             // consumeWindowInsets marks the insets handled by this Scaffold as
             // consumed, so screens with their own imePadding (e.g. the chats)
             // don't apply the keyboard inset a second time.
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+        ) {
+            val update = updateInfo
+            if (isLoggedIn && update != null) {
+                UpdateBanner(info = update, onDismiss = { appViewModel.dismissUpdate() })
+            }
+        NavHost(
+            navController = navController,
+            startDestination = if (isLoggedIn) Routes.MARKETPLACE else Routes.LOGIN,
+            modifier = Modifier.weight(1f),
         ) {
             composable(Routes.LOGIN) {
                 LoginScreen(
@@ -513,6 +552,7 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
             composable(Routes.LEARN) { LearnScreen() }
             composable(Routes.SETTINGS) { SettingsScreen() }
         }
+        }
         if (showCreateOrderSheet) {
             CreateOrderSheet(onDismiss = { showCreateOrderSheet = false })
         }
@@ -526,5 +566,42 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
             )
         }
     }
+    }
+}
+
+/**
+ * Non-intrusive banner shown at the top of the content when a newer release is
+ * available on GitHub. Tapping "Update" opens the release page (Obtainium or a
+ * browser handles the APK download/install).
+ */
+@Composable
+private fun UpdateBanner(info: UpdateInfo, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        ) {
+            Icon(Icons.Default.SystemUpdate, contentDescription = null)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Update available", style = MaterialTheme.typography.titleSmall)
+                Text("Version ${info.versionName}", style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.url)))
+                }
+            }) {
+                Text("Update")
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss")
+            }
+        }
     }
 }
