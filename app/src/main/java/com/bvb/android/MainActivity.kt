@@ -8,6 +8,12 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.core.view.WindowCompat
@@ -469,6 +475,26 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
             navController = navController,
             startDestination = if (isLoggedIn) Routes.MARKETPLACE else Routes.LOGIN,
             modifier = Modifier.weight(1f),
+            // Forward navigation (e.g. list -> detail): the new screen slides in
+            // from the right while the current one eases out to the left.
+            enterTransition = {
+                slideInHorizontally(animationSpec = tween(300, easing = FastOutSlowInEasing)) { it } +
+                    fadeIn(animationSpec = tween(300))
+            },
+            exitTransition = {
+                slideOutHorizontally(animationSpec = tween(300, easing = FastOutSlowInEasing)) { -it / 4 } +
+                    fadeOut(animationSpec = tween(300))
+            },
+            // Back navigation mirrors it: the previous screen returns from the
+            // left, the current one slides back out to the right.
+            popEnterTransition = {
+                slideInHorizontally(animationSpec = tween(300, easing = FastOutSlowInEasing)) { -it / 4 } +
+                    fadeIn(animationSpec = tween(300))
+            },
+            popExitTransition = {
+                slideOutHorizontally(animationSpec = tween(300, easing = FastOutSlowInEasing)) { it } +
+                    fadeOut(animationSpec = tween(300))
+            },
         ) {
             composable(Routes.LOGIN) {
                 LoginScreen(
