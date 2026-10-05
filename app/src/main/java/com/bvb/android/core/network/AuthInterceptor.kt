@@ -24,15 +24,36 @@ class AuthInterceptor @Inject constructor(
         session.token?.let { builder.header("Authorization", "Bearer $it") }
         val response = chain.proceed(builder.build())
 
-        if (response.code == 401 && session.token != null &&
-            chain.request().url.encodedPath !in AUTH_401_EXEMPT_PATHS
-        ) {
-            session.onLogout()
+        if (response.code == 401 && session.token != null) {
+            // A 401 on an exempt path is normally just "wrong password typed",
+            // but a *revoked* token (e.g. the user logged out on the web, which
+            // bumps token_version) also lands here with a distinct body. Without
+            // this, unlocking from the lock screen would loop forever on
+            // "wrong password" with a dead token. Detect the revoked-session
+            // marker so the app drops cleanly to the login screen instead.
+            val path = chain.request().url.encodedPath
+            if (path !in AUTH_401_EXEMPT_PATHS || isRevokedSession(response)) {
+                session.onLogout()
+            }
         }
         return response
     }
 
+    /**
+     * The backend returns `{"error":"session_expired"}` when a token was
+     * revoked (logout/ban bumped token_version), as opposed to a plain
+     * "Invalid password" body for a mistyped password. Peek the body without
+     * consuming it so downstream callers still read the original stream.
+     */
+    private fun isRevokedSession(response: Response): Boolean = try {
+        response.peekBody(PEEK_BYTES).string().contains("session_expired")
+    } catch (_: Exception) {
+        false
+    }
+
     private companion object {
+        const val PEEK_BYTES = 512L
+
         /**
          * Endpoints where a 401 does NOT mean an expired session:
          * login/registration (wrong credentials) and the secret-reveal

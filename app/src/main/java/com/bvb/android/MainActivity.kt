@@ -157,6 +157,17 @@ class AppViewModel @Inject constructor(
     )
     val locked: StateFlow<Boolean> = _locked
 
+    init {
+        // If the session dies for any reason (manual logout, expired/revoked
+        // token detected by the interceptor), clear the lock so a subsequent
+        // fresh login does not get stuck behind the lock screen again.
+        viewModelScope.launch {
+            session.isLoggedIn.collect { loggedIn ->
+                if (!loggedIn) _locked.value = false
+            }
+        }
+    }
+
     /** A newer release available on GitHub, or null when up to date/unknown. */
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo

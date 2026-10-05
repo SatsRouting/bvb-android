@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -55,20 +56,28 @@ fun AppLockScreen(viewModel: AppViewModel) {
     var promptNonce by remember { mutableStateOf(0) }
 
     val biometricReady = remember { viewModel.biometric.decryptCipher() != null }
+    // True while the automatic biometric prompt is up (or a successful unlock is
+    // completing). The manual controls (password / "Log out") are hidden behind
+    // it so they don't flash during a normal unlock; they appear only once the
+    // user cancels the prompt and needs to pick another method.
+    var biometricPrompting by remember { mutableStateOf(biometricReady) }
 
     fun tryBiometric() {
         if (activity == null) {
+            biometricPrompting = false
             showPasswordForm = true
             return
         }
         val cipher = viewModel.biometric.decryptCipher()
         if (cipher == null) {
             // Key was invalidated (new fingerprint enrolled). Fall back to password.
+            biometricPrompting = false
             showPasswordForm = true
             error = "Biometric unlock expired. Enter your password."
             return
         }
         error = null
+        biometricPrompting = true
         promptBiometric(
             activity = activity,
             cipher = cipher,
@@ -78,6 +87,7 @@ fun AppLockScreen(viewModel: AppViewModel) {
             onSuccess = { authed ->
                 val recovered = viewModel.biometric.recover(authed)
                 if (recovered == null) {
+                    biometricPrompting = false
                     showPasswordForm = true
                     error = "Could not restore the session. Enter your password."
                     return@promptBiometric
@@ -86,13 +96,15 @@ fun AppLockScreen(viewModel: AppViewModel) {
                 viewModel.unlockSession(recovered) { ok ->
                     unlocking = false
                     if (!ok) {
+                        biometricPrompting = false
                         showPasswordForm = true
                         error = "Could not restore the session. Enter your password."
                     }
                 }
             },
             onError = {
-                // Cancel / "Use password" / back: stay on this screen.
+                // Cancel / "Use password" / back: reveal the manual controls.
+                biometricPrompting = false
                 showPasswordForm = true
             },
         )
@@ -121,6 +133,15 @@ fun AppLockScreen(viewModel: AppViewModel) {
         )
         Spacer(Modifier.height(24.dp))
         Text("Session locked", style = MaterialTheme.typography.titleLarge)
+
+        if (biometricPrompting) {
+            // Normal unlock in progress: keep a clean screen behind the system
+            // biometric prompt, with no action buttons flashing.
+            Spacer(Modifier.height(24.dp))
+            CircularProgressIndicator()
+            return@Column
+        }
+
         Spacer(Modifier.height(8.dp))
         Text(
             "Unlock with your fingerprint, face, or device PIN/pattern — or enter your password to continue.",
@@ -162,6 +183,8 @@ fun AppLockScreen(viewModel: AppViewModel) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
+                        error = null
+                        biometricPrompting = true
                         showPasswordForm = false
                         promptNonce++
                     },
