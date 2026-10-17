@@ -281,6 +281,17 @@ data class Notification(
 )
 
 @Serializable
+data class PushRegisterRequest(
+    val endpoint: String,
+    val p256dh: String = "",
+    val auth: String = "",
+    @SerialName("device_label") val deviceLabel: String = "",
+)
+
+@Serializable
+data class PushUnregisterRequest(val endpoint: String)
+
+@Serializable
 data class MnemonicResponse(val mnemonic: String)
 
 @Serializable

@@ -21,6 +21,8 @@ set -euo pipefail
 # --- Public build inputs (safe to commit) -----------------------------------
 BASE_URL="${BVB_BASE_URL:-https://p2p.bitcoinvoucher.bot}"
 TURNSTILE_KEY="${BVB_TURNSTILE_SITE_KEY:-0x4AAAAAAB4U6O83PyG_ydwa}"
+# Self-hosted push (UnifiedPush/ntfy) base URL. Empty disables background push.
+NTFY_BASE_URL="${BVB_NTFY_BASE_URL:-https://ntfy.sats4sats.com}"
 
 # Expected release signing certificate. Never changes (same keystore forever);
 # this is the value users verify with AppVerifier.
@@ -58,8 +60,10 @@ fi
 # --- Build ------------------------------------------------------------------
 echo "==> Building signed release APK"
 echo "    BASE_URL=$BASE_URL"
+echo "    NTFY_BASE_URL=$NTFY_BASE_URL"
 ./gradlew :app:assembleRelease \
   -PbvbBaseUrl="$BASE_URL" \
+  -PbvbNtfyBaseUrl="$NTFY_BASE_URL" \
   -PbvbTurnstileSiteKey="$TURNSTILE_KEY"
 
 APK="app/build/outputs/apk/release/app-release.apk"

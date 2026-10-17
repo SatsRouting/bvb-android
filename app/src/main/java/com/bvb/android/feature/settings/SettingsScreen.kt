@@ -63,6 +63,7 @@ import coil.compose.AsyncImage
 import com.bvb.android.BuildConfig
 import com.bvb.android.core.network.ApiError
 import com.bvb.android.core.network.ApiService
+import com.bvb.android.core.push.PushManager
 import com.bvb.android.core.security.BiometricUnlock
 import com.bvb.android.core.security.promptBiometric
 import com.bvb.android.core.session.SessionManager
@@ -115,6 +116,10 @@ data class SettingsUiState(
     // Biometric unlock
     val biometricAvailable: Boolean = false,
     val biometricEnabled: Boolean = false,
+    // Background push (self-hosted UnifiedPush/ntfy)
+    val pushSupported: Boolean = false,
+    val pushEnabled: Boolean = false,
+    val pushBusy: Boolean = false,
     // Secret reveal flows
     val askPasswordFor: SecretKind? = null,
     val revealedMnemonic: String? = null,
@@ -134,11 +139,16 @@ class SettingsViewModel @Inject constructor(
     private val sse: SseClient,
     val biometric: BiometricUnlock,
     private val authRepository: AuthRepository,
+    private val pushManager: PushManager,
 ) : ViewModel() {
     val uiState = MutableStateFlow(SettingsUiState())
 
     init {
         refreshBiometricState()
+        uiState.update { it.copy(
+            pushSupported = pushManager.isSupported,
+            pushEnabled = pushManager.isEnabled,
+        ) }
         load()
         viewModelScope.launch {
             sse.events.collect { event ->
@@ -417,6 +427,25 @@ class SettingsViewModel @Inject constructor(
         uiState.update { it.copy(biometricEnabled = false, message = "App lock disabled") }
     }
 
+    // --- Background push ---
+
+    fun setBackgroundNotifications(enabled: Boolean) {
+        uiState.update { it.copy(pushBusy = true) }
+        pushManager.setEnabled(enabled) { ok ->
+            uiState.update {
+                it.copy(
+                    pushBusy = false,
+                    pushEnabled = if (ok) enabled else it.pushEnabled,
+                    message = when {
+                        !ok -> "Could not update background notifications"
+                        enabled -> "Background notifications enabled"
+                        else -> "Background notifications disabled"
+                    },
+                )
+            }
+        }
+    }
+
     /**
      * Verifies the password against the backend (and restores the in-memory
      * session) so a fresh biometric enrollment can bind a known-good password.
@@ -681,6 +710,31 @@ fun SettingsScreen(
                 loading = state.telegramBusy,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Connect Telegram") }
+        }
+
+        // --- Background notifications (self-hosted push) ---
+        if (state.pushSupported) {
+            HorizontalDivider(Modifier.padding(vertical = 16.dp))
+            SectionTitle("Background Notifications")
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Receive alerts in background", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Get trade and chat notifications even when the app is closed, via our self-hosted push server (no Google). Keeps a low-priority background connection active.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.pushEnabled,
+                    enabled = !state.pushBusy,
+                    onCheckedChange = { viewModel.setBackgroundNotifications(it) },
+                )
+            }
         }
 
         HorizontalDivider(Modifier.padding(vertical = 16.dp))

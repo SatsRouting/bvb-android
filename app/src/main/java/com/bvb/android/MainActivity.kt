@@ -102,6 +102,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.bvb.android.core.notifications.LocalNotifier
+import com.bvb.android.core.push.PushManager
 import com.bvb.android.core.security.BiometricUnlock
 import com.bvb.android.ui.components.AppSnackbar
 import com.bvb.android.core.session.SessionManager
@@ -144,6 +145,7 @@ class AppViewModel @Inject constructor(
     val biometric: BiometricUnlock,
     private val authRepository: AuthRepository,
     private val updateChecker: UpdateChecker,
+    private val pushManager: PushManager,
     // Eagerly created so SSE notifications surface as local notifications.
     @Suppress("unused") private val localNotifier: LocalNotifier,
 ) : ViewModel() {
@@ -164,6 +166,8 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             session.isLoggedIn.collect { loggedIn ->
                 if (!loggedIn) _locked.value = false
+                // Re-arm background push when authenticated (no-op if disabled).
+                else pushManager.onLogin()
             }
         }
     }
@@ -186,8 +190,10 @@ class AppViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
-            // Clears the session even if the network call fails; the
-            // isLoggedIn observer then navigates back to the login screen.
+            // Drop the push endpoint while the token is still valid, then clear
+            // the session even if the network call fails; the isLoggedIn observer
+            // then navigates back to the login screen.
+            pushManager.onLogout()
             authRepository.logout()
             _locked.value = false
         }

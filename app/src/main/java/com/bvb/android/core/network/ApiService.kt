@@ -28,6 +28,8 @@ import com.bvb.android.data.model.OrdersPage
 import com.bvb.android.data.model.PasswordRequest
 import com.bvb.android.data.model.PgpKeysResponse
 import com.bvb.android.data.model.PricePreviewResponse
+import com.bvb.android.data.model.PushRegisterRequest
+import com.bvb.android.data.model.PushUnregisterRequest
 import com.bvb.android.data.model.RefundInvoiceRequest
 import com.bvb.android.data.model.SendMessageRequest
 import com.bvb.android.data.model.TelegramPreferencesRequest
@@ -50,6 +52,7 @@ import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -229,6 +232,13 @@ interface ApiService {
 
     @POST("api/notifications/{id}/mark-read")
     suspend fun markNotificationRead(@Path("id") notificationId: String)
+
+    // --- Push (self-hosted UnifiedPush/ntfy) ---
+    @POST("api/push/register")
+    suspend fun registerPush(@Body body: PushRegisterRequest)
+
+    @HTTP(method = "DELETE", path = "api/push/register", hasBody = true)
+    suspend fun unregisterPush(@Body body: PushUnregisterRequest)
 
     // --- My orders / recovery ---
     @GET("api/user/orders")

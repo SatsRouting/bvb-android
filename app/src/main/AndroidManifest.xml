@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Self-hosted background push: persistent foreground connection to ntfy. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".BvbApplication"
@@ -27,5 +31,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Keeps a persistent connection to the self-hosted ntfy relay so a
+             "ping" wakes the app and fetches notifications while backgrounded.
+             specialUse (not dataSync) because the connection must be long-lived;
+             the app is distributed outside the Play Store (Obtainium). -->
+        <service
+            android:name=".core.push.PushService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintains a self-hosted push (UnifiedPush/ntfy) connection to deliver trade and chat notifications while the app is in the background." />
+        </service>
+
+        <!-- Restarts the push service after a reboot when the user enabled it. -->
+        <receiver
+            android:name=".core.push.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
