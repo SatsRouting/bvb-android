@@ -92,7 +92,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -251,9 +254,25 @@ fun BvbApp(appViewModel: AppViewModel = hiltViewModel()) {
     val locked by appViewModel.locked.collectAsState()
     val updateInfo by appViewModel.updateInfo.collectAsState()
 
-    DisposableEffect(isLoggedIn, locked) {
-        if (isLoggedIn && !locked) appViewModel.sse.connect()
-        onDispose { appViewModel.sse.disconnect() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, isLoggedIn, locked) {
+        // Connect SSE only while the app is in the foreground, and always open a
+        // fresh connection on return (ON_START). Disconnecting on ON_STOP avoids
+        // leaving a half-open socket behind during Doze, which previously left the
+        // app "stuck loading" on resume. Background delivery is handled by the
+        // push service, so SSE is not needed while the app is backgrounded.
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> if (isLoggedIn && !locked) appViewModel.sse.connect()
+                Lifecycle.Event.ON_STOP -> appViewModel.sse.disconnect()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            appViewModel.sse.disconnect()
+        }
     }
 
     // Check GitHub for a newer APK once the user is in the app.

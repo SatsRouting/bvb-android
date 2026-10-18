@@ -44,7 +44,12 @@ class SseClient @Inject constructor(
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS) // SSE: no read timeout
+        // The server emits a keep-alive every 30s; a read gap longer than that
+        // means the connection died silently (e.g. after Doze / a network
+        // switch). A 70s read timeout lets OkHttp surface it as onFailure so the
+        // backoff reconnect kicks in, instead of hanging forever on a half-open
+        // socket (which left the app "stuck loading" on resume).
+        .readTimeout(70, TimeUnit.SECONDS)
         .build()
 
     private val _events = MutableSharedFlow<SseEvent>(extraBufferCapacity = 64)
@@ -58,6 +63,12 @@ class SseClient @Inject constructor(
     private var attempts = 0
     @Volatile
     private var shouldRun = false
+
+    // True once the first connection of this process has opened. Any later open
+    // (backoff reconnect OR a fresh connect() on returning to foreground) is a
+    // "reconnect" and triggers a resync of screens via the synthetic event.
+    @Volatile
+    private var hasConnectedOnce = false
 
     fun connect() {
         shouldRun = true
@@ -87,7 +98,8 @@ class SseClient @Inject constructor(
 
         eventSource = EventSources.createFactory(client).newEventSource(request, object : EventSourceListener() {
             override fun onOpen(eventSource: EventSource, response: Response) {
-                val wasReconnect = attempts > 0
+                val wasReconnect = hasConnectedOnce
+                hasConnectedOnce = true
                 attempts = 0
                 _status.value = SseStatus.CONNECTED
                 if (wasReconnect) {
