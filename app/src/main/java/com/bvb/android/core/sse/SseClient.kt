@@ -50,6 +50,9 @@ class SseClient @Inject constructor(
         // backoff reconnect kicks in, instead of hanging forever on a half-open
         // socket (which left the app "stuck loading" on resume).
         .readTimeout(70, TimeUnit.SECONDS)
+        // Actively probe the connection so a dead HTTP/2 socket is detected and
+        // torn down even before the read timeout elapses.
+        .pingInterval(25, TimeUnit.SECONDS)
         .build()
 
     private val _events = MutableSharedFlow<SseEvent>(extraBufferCapacity = 64)
